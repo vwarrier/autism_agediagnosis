@@ -1,0 +1,123 @@
+###ALSPAC analysis - genetic QC and PGS generation
+
+#All ALSPAC data are of European ancestry and have been QCd
+
+#Update sample file
+sample = fread("~/ALSPAC_2023/swapped.sample")
+sample$plink_pheno[sample$plink_pheno == -9] <- "NA"
+sample$father[sample$father == 0] <- "NA"
+sample$mother[sample$mother == 0] <- "NA"
+
+write.table(sample, file = "~/ALSPAC_2023/swapped.sample", row.names = F, col.names = T, quote = F)
+
+
+#Convert bgen to bed and update SNP names
+for i in {1..22};do ./plink2 --bgen filtered_${i}.bgen --make-bed --out ALSPAC_${i} --sample swapped.sample; done
+
+wget https://ftp.ncbi.nlm.nih.gov/snp/organisms/human_9606_b151_GRCh37p13/VCF/common_all_20180423.vcf.gz
+zgrep -v "^##" common_all_20180423.vcf.gz | cut -f1-3 > fileforrecoding.txt
+awk '{print $1":"$2"\t"$3}' < fileforrecoding.txt > plinkrecodingfile.txt
+
+plink_recoding = fread("~/ALSPAC_2023/plinkrecodingfile.txt")
+plink_recoding = plink_recoding[!duplicated(plink_recoding$`#CHROM:POS`), ]
+plink_recoding = plink_recoding[!duplicated(plink_recoding$ID), ]
+write.table(plink_recoding, file = "~/ALSPAC_2023/plinkrecodingfile.txt", row.names = F, col.names = T, quote = F)
+
+for i in {1..2}; do ./plink2 --bfile ./Genetic_data/ALSPAC_${i}  --make-bed --out ~/ALSPAC_2023/Genetic_data/ALSPAC_updated_${i} --rm-dup exclude-mismatch  --threads 15; done
+for i in {1..22}; do ./plink2 --bfile ./Genetic_data/ALSPAC_updated_${i}  --update-name plinkrecodingfile.txt --make-bed --out ~/ALSPAC_2023/Genetic_data/ALSPAC_updated_v2_${i} --threads 15; done
+
+~/ALSPAC_2023/plink --bfile ALSPAC_updated_v2_1 --merge-list ~/ALSPAC_2023/merge_list.txt --make-bed --out ALSPAC_updated_v3_allchrs
+
+#Generate PGS using PRSice
+
+for i in {1..22};do python PRScs.py --ref_dir=./ldblk_1kg_eur --bim_prefix=/mnt/home4/arc/vw260/ALSPAC_2023/Genetic_data/ALSPAC_updated_v2_${i} --sst_file=/mnt/b2/home4/arc/vw260/Autism_heterogeneity/Age_diagnosis_analyses/daner_dxEarly11_HRC_cleaned_forPRSice.txt --n_gwas=45000 --out_dir=/mnt/b2/home4/arc/vw260/ALSPAC_2023/PGS/Temp_PGS_files/ALSPAC_alphaomega_iPSYCHunder11_${i} --chrom=${i} --phi=1e-2; done 
+for i in {1..22};do python PRScs.py --ref_dir=./ldblk_1kg_eur --bim_prefix=/mnt/home4/arc/vw260/ALSPAC_2023/Genetic_data/ALSPAC_updated_v2_${i} --sst_file=/mnt/b2/home4/arc/vw260/Autism_heterogeneity/Age_diagnosis_analyses/daner_dxLate11_HRC_cleaned_forPRSice.txt --n_gwas=45000 --out_dir=/mnt/b2/home4/arc/vw260/ALSPAC_2023/PGS/Temp_PGS_files/ALSPAC_alphaomega_iPSYCHover10_${i} --chrom=${i} --phi=1e-2; done 
+
+
+
+# Create PGS
+setwd("/mnt/beegfs/home4/arc/vw260/ALSPAC_2023/PGS/Temp_PGS_files/")
+
+data1 = fread("ALSPAC_alphaomega_iPSYCHunder11_1_pst_eff_a1_b0.5_phi1e-02_chr1.txt")
+
+for (i in 2:22){
+  data2 = fread(paste0("ALSPAC_alphaomega_iPSYCHunder11_", i, "_pst_eff_a1_b0.5_phi1e-02_chr", i, ".txt"))
+  data1 = rbind(data1, data2)
+}
+
+write.table(data1, file = "~/ALSPAC_2023/PGS/autism_iPSYCH_under11_PGS.txt", row.names = F, col.names = F, quote = F)
+
+rm(list = ls())
+
+
+./plink2 --bfile ~/ALSPAC_2023/Genetic_data/ALSPAC_updated_v3_allchrs --score ~/ALSPAC_2023/PGS/autism_iPSYCH_under11_PGS.txt 2 4 6 center --out ~/ALSPAC_2023/PGS/autism_iPSYCH_under11_finalscore
+./plink2 --bfile ~/ALSPAC_2023/Genetic_data/ALSPAC_updated_v3_allchrs --score ~/ALSPAC_2023/PGS/autism_iPSYCH_over10_PGS.txt 2 4 6 center --out ~/ALSPAC_2023/PGS/autism_iPSYCH_over10_finalscore
+
+
+#Create Principal components
+
+###Running KING
+./king -b ALSPAC_updated_v3_allchrs.bed --kinship --degree 2 --geno 0.05
+
+./plink2 --bfile ~/ALSPAC_2023/Genetic_data/ALSPAC_updated_v3_allchrs --indep-pairwise 1000 100 0.5  --out ~/ALSPAC_2023/Genetic_data/dataforpuning
+./plink2 --bfile ~/ALSPAC_2023/Genetic_data/ALSPAC_updated_v3_allchrs --extract ~/ALSPAC_2023/Genetic_data/dataforpuning.prune.in --make-bed --geno 0.05 --make-bed --out ~/ALSPAC_2023/Genetic_data/ALSPAC_updated_v3_allchrs_forPCs
+
+
+###Calculating principal components in R using related samples
+library("GENESIS")
+library("SNPRelate")
+library(GWASTools)
+
+
+fam1 = fread("ALSPAC_updated_v3_allchrs_forPCs_2.fam")
+fam2 = fam1[,c("V2")]
+
+snpgdsBED2GDS(bed.fn = "ALSPAC_updated_v3_allchrs_forPCs_2.bed", 
+              bim.fn = "ALSPAC_updated_v3_allchrs_forPCs_2.bim", 
+              fam.fn = "ALSPAC_updated_v3_allchrs_forPCs_2.fam", 
+              out.gdsfn = "ALSPAC_updated_v3_allchrs_forPCs_2.gds")
+
+
+gds <- snpgdsOpen("ALSPAC_updated_v3_allchrs_forPCs_2.gds")
+
+
+#snpset <- snpgdsLDpruning(gds, method="corr", slide.max.bp=10e6, 
+#                          ld.threshold=sqrt(0.1), verbose=FALSE)
+#pruned <- unlist(snpset, use.names=FALSE)
+#length(pruned)
+
+snpgdsClose(gds)
+
+#save(pruned, file = "pruned.RData")
+
+KINGmat <- kingToMatrix(c("king.kin0", "king.kin"), sample.include = fam1$V2, estimator = "Kinship")
+KINGmat[1:5,1:5]
+
+save(KINGmat, file = "KINGmat.RData")
+
+data1 <- GdsGenotypeReader(filename = "ALSPAC_updated_v3_allchrs_forPCs_2.gds")
+data2 <- GenotypeData(data1)
+
+
+mypcair <- pcair(data2, kinobj = KINGmat, divobj = NULL)
+
+
+PC = data.frame(mypcair$vectors)
+PC$Sample_name = row.names(PC)
+
+save(PC, file = "PC.RData")
+
+PC2 = PC[,c(33, 1:32)]
+head(PC2)
+
+mean1 = mean(PC2$X1)
+sd1 = sd(PC2$X1)
+PC3 = subset(PC2, abs(X1) < mean1 + 3sd1)
+
+mean2 = mean(PC2$X2)
+sd2 = sd(PC2$X2)
+
+PC3 = subset(PC3, abs(X2) < 0.02270257)
+
+write.table(PC3, file = "ALSPAC_PCsforGWAS_european.txt", row.names = F, col.names = T, quote = F)
+
