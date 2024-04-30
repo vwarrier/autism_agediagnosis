@@ -1,7 +1,7 @@
 #GenomicSEM_basedgeneticcor
 
 library(data.table)
-library(genomicSEM)
+library(GenomicSEM)
 
 #Genetic correlation - genomicSEM
 
