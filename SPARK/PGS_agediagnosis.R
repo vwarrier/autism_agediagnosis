@@ -150,3 +150,19 @@ for(i in list1){
   results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_health[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest + attn_behav, data = merged_total_health))
   results_model5 = rbind(results_model5, cbind(i, t(results_all$coefficients[2,])))
 }
+
+
+#Sensitivity analyses - restricting to individuals without ID and who can speak in sentences
+merged_noID = subset(merged_total, cognitive_impairment_latest  == FALSE)
+merged_noID_fullsentence = subset(merged_noID, language_level_latest  == "Uses longer sentences of his/her own and is able to tell you something that happened")
+
+
+results_model6 = NULL
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_noID_fullsentence[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years, data = merged_noID_fullsentence))
+  results_model6 = rbind(results_model6, cbind(i, t(results_all$coefficients[2,])))
+}
+
+
+
