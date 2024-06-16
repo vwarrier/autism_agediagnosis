@@ -1,1 +1,182 @@
-To add
+#Merging all files
+
+pheno = fread("~/ALSPAC_2023/Phenotypes/B4244_Martin _2Feb2024.csv")
+pheno$ID = paste0(pheno$cidB4244, pheno$qlet)
+setnames(pheno, "kz021", "sex")
+
+id = fread("~/ALSPAC_2023/Phenotypes/OmicsIDs_B4244_21Feb24.csv")
+id$ID = paste0(id$cidB4244, id$qlet)
+id = id[,c("ID", "gi_hrc_g0m_g1")]
+setnames(id, "gi_hrc_g0m_g1", "IID")
+
+PCs = fread("~/ALSPAC_2023/Genetic_data/ALSPAC_PCsforGWAS_european.txt")
+setnames(PCs, "Sample_name", "IID")
+
+over10 = fread("~/ALSPAC_2023/PGS/autism_iPSYCH_over10_finalscore.sscore")
+over10 = over10[,c("IID", "SCORE1_AVG")]
+setnames(over10, "SCORE1_AVG", "over10_PGS")
+
+under11 = fread("~/ALSPAC_2023/PGS/autism_iPSYCH_under11_finalscore.sscore")
+under11 = under11[,c("IID", "SCORE1_AVG")]
+setnames(under11, "SCORE1_AVG", "under11_PGS")
+
+df_list <- list( over10, under11, PCs)
+
+merged = df_list %>% reduce(full_join, by='IID') # 7841 children, 12416 adults/[parents]
+
+merged$IID <- substring(merged$IID, 1, nchar(merged$IID) - 1)
+
+merged = merge(merged, id, by = "IID")
+merged <- unique(merged, by = "IID")
+
+SDQ_age7 = pheno[,c("ID", "sex", "kq348a", "kq348b",	"kq348c",	"kq348d",	"kq348e",	"kq348f")]
+setnames(SDQ_age7, old = c("kq348a", "kq348b",	"kq348c",	"kq348d",	"kq348e",	"kq348f"), new = c("prosocial", "hyperactivity", "emotional", "conduct", "peer", "total"))
+
+SDQ_age10 = pheno[,c("ID", "sex", "ku705b", "ku706b",	"ku707b",	"ku708b",	"ku709b",	"ku710b")]
+setnames(SDQ_age10, old = c("ku705b", "ku706b",	"ku707b",	"ku708b",	"ku709b",	"ku710b"), new = c("prosocial", "hyperactivity", "emotional", "conduct", "peer", "total"))
+
+SDQ_age12 = pheno[,c("ID", "sex", "kw6600b", "kw6601b",	"kw6602b",	"kw6603b",	"kw6604b",	"kw6605b")]
+setnames(SDQ_age12, old = c("kw6600b", "kw6601b",	"kw6602b",	"kw6603b",	"kw6604b",	"kw6605b"), new = c("prosocial", "hyperactivity", "emotional", "conduct", "peer", "total"))
+
+SDQ_age13 = pheno[,c("ID", "sex", "ta7025a", "ta7025b",	"ta7025c",	"ta7025d",	"ta7025e",	"ta7025f")]
+setnames(SDQ_age13, old = c("ta7025a", "ta7025b",	"ta7025c",	"ta7025d",	"ta7025e",	"ta7025f"), new = c( "emotional", "conduct", "hyperactivity", "peer", "prosocial",  "total"))
+
+SDQ_age17 = pheno[,c("ID", "sex", "tc4025a", "tc4025b",	"tc4025c",	"tc4025d",	"tc4025e",	"tc4025f")]
+setnames(SDQ_age17, old = c("tc4025a", "tc4025b",	"tc4025c",	"tc4025d",	"tc4025e",	"tc4025f"), new = c( "emotional", "conduct", "hyperactivity", "peer", "prosocial",  "total"))
+
+
+
+data_frames <- list(SDQ_age7, SDQ_age10, SDQ_age12, SDQ_age13, SDQ_age17)
+
+SDQ_age7[SDQ_age7<0]=NA
+SDQ_age10[SDQ_age10<0]=NA
+SDQ_age12[SDQ_age12<0]=NA
+SDQ_age13[SDQ_age13<0]=NA
+SDQ_age17[SDQ_age17<0]=NA
+
+
+merged1 = merge(merged, SDQ_age7, by = "ID")
+merged2 = merge(merged, SDQ_age10, by = "ID")
+merged3 = merge(merged, SDQ_age12, by = "ID")
+merged4 = merge(merged, SDQ_age13, by = "ID")
+merged5 = merge(merged, SDQ_age17, by = "ID")
+
+
+merged1$period = 7
+merged2$period = 10
+merged3$period = 12
+merged4$period = 13
+merged5$period = 17
+
+merged_multilevel = bind_rows(merged1, merged2, merged3, merged4, merged5)
+merged_multilevel$period = as.numeric(as.character(merged_multilevel$period))
+
+
+lin_agePGS <- lmer(scale(hyperactivity) ~ scale(over10_PGS)*scale(period) + scale(under11_PGS)*scale(period) + sex  + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + (1 | ID), data = merged_multilevel)
+summary(lin_agePGS)
+
+
+list1 = c("emotional", "conduct", "hyperactivity", "peer", "prosocial", "total")
+results_over10 = NULL
+results_under11 = NULL
+Samplesize = NULL
+
+for(i in list1){
+  results_all = summary(lm(scale(merged1[[i]]) ~ scale(over10_PGS) + scale(under11_PGS) + sex  + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10, data = merged1))
+  results_over10 = rbind(results_over10, cbind(i, t(results_all$coefficients[2,])))
+  results_under11 = rbind(results_under11, cbind(i, t(results_all$coefficients[3,])))
+  dim =  nrow(merged1) - length(results_all$na.action)
+  Samplesize = rbind(Samplesize, dim)
+  
+}
+
+
+for(i in list1){
+  results_all = summary(lm(scale(merged2[[i]]) ~ scale(over10_PGS) + scale(under11_PGS) + sex +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10, data = merged2))
+  results_over10 = rbind(results_over10, cbind(i, t(results_all$coefficients[2,])))
+  results_under11 = rbind(results_under11, cbind(i, t(results_all$coefficients[3,])))
+  dim =  nrow(merged1) - length(results_all$na.action)
+  Samplesize = rbind(Samplesize, dim)
+  
+}
+
+
+for(i in list1){
+  results_all = summary(lm(scale(merged3[[i]]) ~ scale(over10_PGS) + scale(under11_PGS) + sex +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10, data = merged3))
+  results_over10 = rbind(results_over10, cbind(i, t(results_all$coefficients[2,])))
+  results_under11 = rbind(results_under11, cbind(i, t(results_all$coefficients[3,])))
+  dim =  nrow(merged1) - length(results_all$na.action)
+  Samplesize = rbind(Samplesize, dim)
+  
+}
+
+for(i in list1){
+  results_all = summary(lm(scale(merged4[[i]]) ~ scale(over10_PGS) + scale(under11_PGS) + sex +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10, data = merged4))
+  results_over10 = rbind(results_over10, cbind(i, t(results_all$coefficients[2,])))
+  results_under11 = rbind(results_under11, cbind(i, t(results_all$coefficients[3,])))
+  dim =  nrow(merged1) - length(results_all$na.action)
+  Samplesize = rbind(Samplesize, dim)
+  
+}
+
+for(i in list1){
+  results_all = summary(lm(scale(merged5[[i]]) ~ scale(over10_PGS) + scale(under11_PGS) + sex +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10, data = merged5))
+  results_over10 = rbind(results_over10, cbind(i, t(results_all$coefficients[2,])))
+  results_under11 = rbind(results_under11, cbind(i, t(results_all$coefficients[3,])))
+  dim =  nrow(merged1) - length(results_all$na.action)
+  Samplesize = rbind(Samplesize, dim)
+  
+}
+
+autism = pheno[,c("ID", "sex", "YPH1270", "ku360",	"ku361")]
+autism[autism<0]=NA
+
+autism$ku360 =ifelse(autism$ku360 ==1, 0, autism$ku360)
+autism$ku360 =ifelse(autism$ku360 ==2, 1, autism$ku360)
+merged_autism = merge(merged, autism, by = "ID")
+
+
+results_all = summary(glm(ku360 ~ scale(over10_PGS) + scale(under11_PGS) + sex +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10, data = merged_autism, family = "binomial"))
+
+
+
+
+results_all = summary(lm(YPH1270 ~ scale(over10_PGS) + scale(under11_PGS) + sex +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10, data = merged_autism))
+
+merged_autism$suspect = ifelse(merged_autism$YPH1270 ==2, 1, NA)
+merged_autism$suspect = ifelse(merged_autism$YPH1270 ==3, 0, merged_autism$suspect)
+
+
+merged_autism$autism_28 = ifelse(merged_autism$YPH1270 ==1, 1, NA)
+merged_autism$autism_28 = ifelse(merged_autism$YPH1270 ==3, 0, merged_autism$autism_28)
+
+
+scdc = pheno[,c("ID", "sex",  "kr554b", "kg622a", "kg622b","kg623a", "kg623b", "kl722a", "kl722b", "kn6022a", "kn6022b", "FKEP1015", "ku503a", "ku504a", "ku505a", "ku506a", "ku507a", "ku508a", "ku509a", "ku510a", "kc814" )]
+scdc[scdc<0]=NA
+
+merged_scdc = merge(merged, scdc, by = "ID")
+
+summary(lm(scale(kc814) ~ scale(under11_PGS) + scale(over10_PGS) + sex +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10, data = merged_scdc))
+
+
+gesture = pheno[,c("ID", "sex","kc958", "kc959","kc960", "kc961", "kc962", "kc963", "kc964", "kc965", "kc966", "kc967")]
+gesture[gesture<0]=NA
+gesture$total = rowSums(gesture[ , c(3:12)], na.rm=TRUE)
+gesture[gesture<1]=NA
+
+
+merged_gesture = merge(merged, gesture, by = "ID")
+summary(lm(scale(total) ~ scale(under11_PGS) + scale(over10_PGS) + sex +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10, data = merged_gesture))
+
+summary(lm(scale(total) ~ scale(Autism_PGS) + sex +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10, data = merged_gesture))
+
+
+
+
+behav = pheno[,c("ID", "sex", "kg900", "kg901", "kg902", "kg903", "kg904")]
+
+behav[behav<0]=NA
+
+merged_behav = merge(merged, behav, by = "ID")
+summary(lm(scale(kg904) ~ scale(over10_PGS) + scale(under11_PGS) + sex +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10, data = merged_behav))
+
