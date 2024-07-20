@@ -120,6 +120,8 @@ autism_eligible = subset(core_autism, age_at_registration_years < 22) # 109657, 
 
 merged_total = merge(merged, autism_eligible, by.x = "IID", by.y = "subject_sp_id")
 
+merged_total = unique(merged_total)
+
 merged_total$diagnosis_age2 = log(merged_total$diagnosis_age/12 + 1)
 merged_total$diagnosis_age3 = scale(merged_total$diagnosis_age/12) #6206
 
