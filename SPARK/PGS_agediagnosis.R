@@ -163,4 +163,23 @@ for(i in list1){
 }
 
 
+#Sex stratified
+female = subset(merged_total, sex == "Female")
+male = subset(merged_total, sex == "Male")
+
+results_model7 = NULL
+results_model8 = NULL
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(female[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + cognitive_impairment_latest, data = female))
+  results_model7 = rbind(results_model7, cbind(i, t(results_all$coefficients[2,])))
+}
+
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(male[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + cognitive_impairment_latest, data = male))
+  results_model8 = rbind(results_model8, cbind(i, t(results_all$coefficients[2,])))
+}
+
+
 
