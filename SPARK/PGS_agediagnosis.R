@@ -80,7 +80,7 @@ results_model4 = NULL
 results_model5 = NULL
 
 for(i in list1){
-  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest, data = merged_total))
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest, data = merged_total))
   results_model1 = rbind(results_model1, cbind(i, t(results_all$coefficients[2,])))
 }
 
@@ -92,7 +92,7 @@ merged_total$walked_age_mos = ifelse(merged_total$walked_age_mos == "888", NA, m
 merged_total$used_words_age_mos = ifelse(merged_total$used_words_age_mos == "888", NA, merged_total$used_words_age_mos)
 
 for(i in list1){
-  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest + walked_age_mos + used_words_age_mos, data = merged_total))
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest + walked_age_mos + used_words_age_mos, data = merged_total))
   results_model2 = rbind(results_model2, cbind(i, t(results_all$coefficients[2,])))
 }
 
@@ -106,7 +106,7 @@ setnames(SES2, "subject_sp_id", "IID")
 merged_total_ses= merge(merged_total, SES2, by = "IID")
 
 for(i in list1){
-  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_ses[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest + walked_age_mos + used_words_age_mos + mother_occupation + father_occupation + annual_household_income + father_highest_education + mother_highest_education, data = merged_total_ses))
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_ses[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex  + cognitive_impairment_latest + walked_age_mos + used_words_age_mos + mother_occupation + father_occupation + annual_household_income + father_highest_education + mother_highest_education, data = merged_total_ses))
   results_model3 = rbind(results_model3, cbind(i, t(results_all$coefficients[2,])))
 }
 
@@ -120,21 +120,19 @@ setnames(deprivation, "subject_sp_id", "IID")
 merged_total_dep = merge(merged_total_ses, deprivation, by = "IID")
 
 for(i in list1){
-  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_dep[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest + walked_age_mos + used_words_age_mos + mother_occupation + father_occupation + annual_household_income + adi_national_rank_percentile, data = merged_total_dep))
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_dep[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex  + cognitive_impairment_latest + walked_age_mos + used_words_age_mos + mother_occupation + father_occupation + annual_household_income + adi_national_rank_percentile, data = merged_total_dep))
   results_model4 = rbind(results_model4, cbind(i, t(results_all$coefficients[2,])))
 }
 
 
 ##Sex-diff
 
-summary(lm(diagnosis_age3 ~ scale(ADHD_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + age_at_registration_years + cognitive_impairment_latest, data = merged_total))
-summary(lm(diagnosis_age3 ~ scale(depression_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + age_at_registration_years + cognitive_impairment_latest, data = merged_total))
-summary(lm(diagnosis_age3 ~ scale(edu_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + age_at_registration_years + cognitive_impairment_latest, data = merged_total))
-summary(lm(diagnosis_age3 ~ scale(scz_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + age_at_registration_years + cognitive_impairment_latest, data = merged_total))
-summary(lm(diagnosis_age3 ~ scale(over10_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + age_at_registration_years + cognitive_impairment_latest, data = merged_total))
-summary(lm(diagnosis_age3 ~ scale(under11_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + age_at_registration_years + cognitive_impairment_latest, data = merged_total))
-summary(lm(diagnosis_age3 ~ scale(under9_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + age_at_registration_years + cognitive_impairment_latest, data = merged_total))
-summary(lm(diagnosis_age3 ~ scale(over11_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + age_at_registration_years + cognitive_impairment_latest, data = merged_total))
+summary(lm(diagnosis_age3 ~ scale(ADHD_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
+summary(lm(diagnosis_age3 ~ scale(depression_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
+summary(lm(diagnosis_age3 ~ scale(edu_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
+summary(lm(diagnosis_age3 ~ scale(scz_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
+summary(lm(diagnosis_age3 ~ scale(over10_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
+summary(lm(diagnosis_age3 ~ scale(under11_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
 
 
 # Accounting for ADHD diagnosis
@@ -147,7 +145,7 @@ setnames(health2, "subject_sp_id", "IID")
 merged_total_health = merge(merged_total, health2, by = "IID")
 
 for(i in list1){
-  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_health[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest + attn_behav, data = merged_total_health))
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_health[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex  + cognitive_impairment_latest + attn_behav, data = merged_total_health))
   results_model5 = rbind(results_model5, cbind(i, t(results_all$coefficients[2,])))
 }
 
@@ -160,7 +158,7 @@ merged_noID_fullsentence = subset(merged_noID, language_level_latest  == "Uses l
 results_model6 = NULL
 
 for(i in list1){
-  results_all = summary(lm(diagnosis_age3 ~ scale(merged_noID_fullsentence[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years, data = merged_noID_fullsentence))
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_noID_fullsentence[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex, data = merged_noID_fullsentence))
   results_model6 = rbind(results_model6, cbind(i, t(results_all$coefficients[2,])))
 }
 
