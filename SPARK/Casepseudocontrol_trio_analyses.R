@@ -68,6 +68,8 @@ merged = merge(merged, PCs, by = "IID")
 core = fread("/mnt/beegfs/home4/arc/vw260/SPARK/Phenotypes/V9/SPARK_collection_v9_2022-12-12/core_descriptive_variables_2022-12-12.csv")
 core_autism = subset(core, asd == "TRUE") # 123442
 
+autism_eligible = subset(core_autism, age_at_registration_years < 22) # 109657, persons born in 1994 or afterwards after DSM -4 came out, and subsequently, the use of Asperger Syndrome
+
 
 merged_total = merge(merged, autism_eligible, by.x = "IID", by.y = "subject_sp_id")
 merged_total$diagnosis_age3 = scale(merged_total$diagnosis_age/12)
