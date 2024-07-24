@@ -73,9 +73,9 @@ merged_total = merge(merged, autism_eligible, by.x = "IID", by.y = "subject_sp_i
 merged_total$diagnosis_age3 = scale(merged_total$diagnosis_age/12)
 
 
-summary(lmer(diagnosis_age3 ~ scale(edu_PGS.T) + scale(edu_PGS.U) +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest + (1|FID), data = merged_total))
+summary(lmer(diagnosis_age3 ~ scale(edu_PGS.T) + scale(edu_PGS.U) +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest + (1|FID), data = merged_total))
 
-summary(lmer(diagnosis_age3 ~ scale(ADHD_PGS.T) + scale(ADHD_PGS.U) +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest + (1|FID), data = merged_total))
+summary(lmer(diagnosis_age3 ~ scale(ADHD_PGS.T) + scale(ADHD_PGS.U) +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest + (1|FID), data = merged_total))
 
 #Cor between T and U:  ADHD: 0.022 (-0.002 - 0.04), Edu: 0.19 (0.17 - 0.21)
 
@@ -86,11 +86,11 @@ nboot <- 10000
 
 trio_lm<-function(data,index){
   datx<-data[index,]
-  mod <- lm(diagnosis_age3 ~ scale(ADHD_PGS.T) + scale(ADHD_PGS.U) +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest, data = datx)
+  mod <- lm(diagnosis_age3 ~ scale(ADHD_PGS.T) + scale(ADHD_PGS.U) +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest, data = datx)
   coef(mod) #get fixed effects
 }
 
-summary( lm(diagnosis_age3 ~ scale(ADHD_PGS.T) + scale(ADHD_PGS.U) +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest, data = merged_total))
+summary( lm(diagnosis_age3 ~ scale(ADHD_PGS.T) + scale(ADHD_PGS.U) +  X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest, data = merged_total))
 
 trio_lm_boot<-boot(merged_total, trio_lm, nboot, parallel = "multicore", ncpus=20) 
 
@@ -232,7 +232,7 @@ list1 = c("ADHD_PGS", "Autism_PGS", "bipolar_PGS", "depression_PGS", "scz_PGS", 
 results_model1 = NULL
 
 for(i in list1){
-  results_all = summary(glm(trio ~ scale(merged_total[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest, data = merged_total,  family = "binomial"))
+  results_all = summary(glm(trio ~ scale(merged_total[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest, data = merged_total,  family = "binomial"))
   
   results_model1 = rbind(results_model1, cbind(i, t(results_all$coefficients[2,])))
 }
@@ -242,7 +242,7 @@ for(i in list1){
 results_model2 = NULL
 
 for(i in list1){
-  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + trio + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest, data = merged_total))
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + trio + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest, data = merged_total))
   
   results_model2 = rbind(results_model2, cbind(i, t(results_all$coefficients[2,])))
 }
@@ -250,7 +250,7 @@ for(i in list1){
 results_model3 = NULL
 
 for(i in list1){
-  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]])*trio + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest, data = merged_total))
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]])*trio + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest, data = merged_total))
   
   results_model3 = rbind(results_model3, cbind(i, t(results_all$coefficients[17,])))
 }
@@ -261,7 +261,7 @@ trios = subset(merged_total, trio == "1")
 results_model4 = NULL
 
 for(i in list1){
-  results_all = summary(lm(diagnosis_age3 ~ scale(trios[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest, data = trios))
+  results_all = summary(lm(diagnosis_age3 ~ scale(trios[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest, data = trios))
   
   results_model4 = rbind(results_model4, cbind(i, t(results_all$coefficients[2,])))
 }
