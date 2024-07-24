@@ -131,6 +131,11 @@ summary(lm(diagnosis_age3 ~ scale(ADHD_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + 
 summary(lm(diagnosis_age3 ~ scale(depression_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
 summary(lm(diagnosis_age3 ~ scale(edu_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
 summary(lm(diagnosis_age3 ~ scale(scz_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
+summary(lm(diagnosis_age3 ~ scale(IQ_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
+summary(lm(diagnosis_age3 ~ scale(bipolar_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
+summary(lm(diagnosis_age3 ~ scale(Autism_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
+
+
 summary(lm(diagnosis_age3 ~ scale(over10_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
 summary(lm(diagnosis_age3 ~ scale(under11_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
 
