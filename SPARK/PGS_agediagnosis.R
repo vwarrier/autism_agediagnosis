@@ -46,7 +46,6 @@ under11 = under11[,c("IID", "SCORE")]
 setnames(under11, "SCORE", "under11_PGS")
 
 
-
 df_list <- list(Autism, ADHD, scz, IQ, edu, bipolar,  depression, over10, under11)
 
 merged = df_list %>% reduce(full_join, by='IID')
@@ -75,9 +74,12 @@ list1 = c("ADHD_PGS", "Autism_PGS", "bipolar_PGS", "depression_PGS", "scz_PGS", 
 
 results_model1 = NULL
 results_model2 = NULL
+results_model2_allclinical = NULL
+
 results_model3 = NULL
 results_model4 = NULL
 results_model5 = NULL
+results_model5_allhealth = NULL
 
 for(i in list1){
   results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest, data = merged_total))
@@ -94,6 +96,12 @@ merged_total$used_words_age_mos = ifelse(merged_total$used_words_age_mos == "888
 for(i in list1){
   results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest + walked_age_mos + used_words_age_mos, data = merged_total))
   results_model2 = rbind(results_model2, cbind(i, t(results_all$coefficients[2,])))
+}
+
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest + walked_age_mos + used_words_age_mos + scq_total_final_score + rbsr_total_final_score + regress_lang_y_n + regress_other_y_n + reported_cog_test_score, data = merged_total))
+  results_model2_allclinical = rbind(results_model2_allclinical, cbind(i, t(results_all$coefficients[2,])))
 }
 
 
@@ -125,6 +133,8 @@ for(i in list1){
 }
 
 
+
+
 ##Sex-diff
 
 summary(lm(diagnosis_age3 ~ scale(ADHD_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
@@ -140,10 +150,12 @@ summary(lm(diagnosis_age3 ~ scale(over10_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 
 summary(lm(diagnosis_age3 ~ scale(under11_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
 
 
-# Accounting for ADHD diagnosis
+# Accounting for ADHD diagnosis or any mental health diagnosis
 health = fread("/mnt/beegfs/home4/arc/vw260/SPARK/Phenotypes/V9/SPARK_collection_v9_2022-12-12/basic_medical_screening_2022-12-12.csv")
-health2 = health[,c("subject_sp_id", "attn_behav")]
+
+health2 = health[,c("subject_sp_id", "attn_behav", "mood_anx", "schiz", "tics")]
 health2[is.na(health2)] <- 0
+
 
 setnames(health2, "subject_sp_id", "IID")
 
@@ -152,6 +164,11 @@ merged_total_health = merge(merged_total, health2, by = "IID")
 for(i in list1){
   results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_health[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex  + cognitive_impairment_latest + attn_behav, data = merged_total_health))
   results_model5 = rbind(results_model5, cbind(i, t(results_all$coefficients[2,])))
+}
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_health[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex  + cognitive_impairment_latest + attn_behav + mood_anx + schiz + tics, data = merged_total_health))
+  results_model5_allhealth = rbind(results_model5_allhealth, cbind(i, t(results_all$coefficients[2,])))
 }
 
 
@@ -185,6 +202,5 @@ for(i in list1){
   results_all = summary(lm(diagnosis_age3 ~ scale(male[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + cognitive_impairment_latest, data = male))
   results_model8 = rbind(results_model8, cbind(i, t(results_all$coefficients[2,])))
 }
-
 
 
