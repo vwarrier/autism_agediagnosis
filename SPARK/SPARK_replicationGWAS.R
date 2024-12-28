@@ -140,4 +140,7 @@ write.table(qcovar, file = "/mnt/home4/arc/vw260/SPARK/SPARK_v4/GWAS/Autism_SPAR
 ./plink --meta-analysis ~/SPARK/SPARK_v4/GWAS/Autism_SPARK_December2024/under6_autism_SPARKreplication.fastGWA ~/SPARK/SPARK_v3/GWAS/Autism_SPARK_June2024/under6_autism.fastGWA + qt report-all --out ./metaanalysis/SPARK_under6 --meta-analysis-bp-field POS
 ./plink --meta-analysis ~/SPARK/SPARK_v4/GWAS/Autism_SPARK_December2024/over10_autism_SPARKreplication.fastGWA ~/SPARK/SPARK_v3/GWAS/Autism_SPARK_June2024/over10_autism.fastGWA + qt report-all --out ./metaanalysis/SPARK_over10 --meta-analysis-bp-field POS
 
+./plink --meta-analysis ~/SPARK/SPARK_v4/GWAS/Agediagnosis_linear_noage.fastGWA ~/SPARK/SPARK_v3/GWAS/Age_of_diagnosis/Agediagnosis_linear_noage.fastGWA + qt report-all --out ./metaanalysis/SPARK_agediagnosis --meta-analysis-bp-field POS
+
+
 
