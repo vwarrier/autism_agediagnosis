@@ -116,12 +116,4 @@ mean(females$autism_diff)
 2*pnorm(-abs(Z))
 
 
-#Analyses with age at diagnosis
-
-updated_trio = subset(triopgs, age_at_registration_years < 22)
-
-summary(lm(scale(diagnosis_age/12) ~ scale(autism_diff) + scale(midparent_autism) + sex + cognitive_impairment_latest, data = updated_trio))
-
-
-
 
