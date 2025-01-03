@@ -1,0 +1,413 @@
+#Polygenic scoring in SPARK"
+
+library(data.table)
+library(MASS)
+library(lme4)
+library(tidyverse)
+library(boot)
+
+over10 = fread("~/Autism_heterogeneity/PGS/SPARK_alphaomega_iPSYCHover10_finalscore.profile")
+over10 = over10[,c("FID", "IID", "SCORE")]
+setnames(over10, "SCORE", "over10_PGS")
+
+under11 = fread("~/Autism_heterogeneity/PGS/SPARK_alphaomega_iPSYCHunder11_finalscore.profile")
+under11 = under11[,c("IID", "SCORE")]
+setnames(under11, "SCORE", "under11_PGS")
+
+
+merged = merge(over10, under11, by = "IID")
+PCs = fread("~/SPARK/SPARK_v3/Preimputation_genotype/SPARKalphaomega_PCsforGWAS_v2.txt") # 47170
+setnames(PCs, "Sample_name", "IID")
+merged = merge(merged, PCs, by = "IID")
+
+alpha = fread("~/SPARK/SPARK_v3/Postimputation_genotyping/alpha/alpha_chr1_hg19_cleaned_v2.fam")
+merged$batch = ifelse(merged$IID %in% alpha$V2, "alpha", "omega")
+
+
+###Read the pheno files###
+
+core = fread("/mnt/beegfs/home4/arc/vw260/SPARK/Phenotypes/V9/SPARK_collection_v9_2022-12-12/core_descriptive_variables_2022-12-12.csv")
+core_autism = subset(core, asd == "TRUE") # 123442
+
+autism_eligible = subset(core_autism, age_at_registration_years < 22) # 109657, persons born in 1994 or afterwards after DSM -4 came out, and subsequently, the use of Asperger Syndrome
+
+merged_total = merge(merged, autism_eligible, by.x = "IID", by.y = "subject_sp_id")
+merged_total$diagnosis_age3 = scale(merged_total$diagnosis_age/12)
+
+
+
+#Run regressions
+#Model 1: ID included as a covariate
+
+list1 = c("over10_PGS", "under11_PGS")
+
+results_model1 = NULL
+results_model2 = NULL
+results_model2_allclinical = NULL
+
+results_model3 = NULL
+results_model4 = NULL
+results_model5 = NULL
+
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest + batch, data = merged_total))
+  results_model1 = rbind(results_model1, cbind(i, t(results_all$coefficients[2,])))
+}
+
+
+
+
+#Model 2: Sensitivity analyses - developmental milestones
+merged_total$walked_age_mos = ifelse(merged_total$walked_age_mos == "888", NA, merged_total$walked_age_mos)
+merged_total$used_words_age_mos = ifelse(merged_total$used_words_age_mos == "888", NA, merged_total$used_words_age_mos)
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest + batch + walked_age_mos + used_words_age_mos, data = merged_total))
+  results_model2 = rbind(results_model2, cbind(i, t(results_all$coefficients[2,])))
+}
+
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest + batch + walked_age_mos + used_words_age_mos + scq_total_final_score + rbsr_total_final_score + regress_lang_y_n + regress_other_y_n + reported_cog_test_score, data = merged_total))
+  results_model2_allclinical = rbind(results_model2_allclinical, cbind(i, t(results_all$coefficients[2,])))
+}
+
+
+#Model 3: With SES
+
+SES =  fread("/mnt/beegfs/home4/arc/vw260/SPARK/Phenotypes/V9/SPARK_collection_v9_2022-12-12/background_history_child_2022-12-12.csv")
+SES2 = SES[,c("subject_sp_id", "mother_highest_education", "father_highest_education", "mother_occupation", "father_occupation", "annual_household_income")]
+
+setnames(SES2, "subject_sp_id", "IID")
+merged_total_ses= merge(merged_total, SES2, by = "IID")
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_ses[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex  + cognitive_impairment_latest + batch + walked_age_mos + used_words_age_mos + mother_occupation + father_occupation + annual_household_income + father_highest_education + mother_highest_education, data = merged_total_ses))
+  results_model3 = rbind(results_model3, cbind(i, t(results_all$coefficients[2,])))
+}
+
+
+
+#Model 4: With SES and deprivation
+
+deprivation = fread("/mnt/beegfs/home4/arc/vw260/SPARK/Phenotypes/V9/SPARK_collection_v9_2022-12-12/area_deprivation_index_2022-12-12.csv")
+setnames(deprivation, "subject_sp_id", "IID")
+
+merged_total_dep = merge(merged_total_ses, deprivation, by = "IID")
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_dep[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex  + cognitive_impairment_latest + batch + walked_age_mos + used_words_age_mos + mother_occupation + father_occupation + annual_household_income + adi_national_rank_percentile, data = merged_total_dep))
+  results_model4 = rbind(results_model4, cbind(i, t(results_all$coefficients[2,])))
+}
+
+
+# Accounting for ADHD diagnosis 
+health = fread("/mnt/beegfs/home4/arc/vw260/SPARK/Phenotypes/V9/SPARK_collection_v9_2022-12-12/basic_medical_screening_2022-12-12.csv")
+
+health2 = health[,c("subject_sp_id", "attn_behav", )]
+health2[is.na(health2)] <- 0
+
+
+setnames(health2, "subject_sp_id", "IID")
+
+merged_total_health = merge(merged_total, health2, by = "IID")
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_health[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex  + cognitive_impairment_latest + attn_behav + batch, data = merged_total_health))
+  results_model5 = rbind(results_model5, cbind(i, t(results_all$coefficients[2,])))
+}
+
+
+
+#Sensitivity analyses - restricting to individuals without ID and who can speak in sentences
+merged_noID = subset(merged_total, cognitive_impairment_latest  == FALSE)
+merged_noID_fullsentence = subset(merged_noID, language_level_latest  == "Uses longer sentences of his/her own and is able to tell you something that happened")
+
+
+results_model6 = NULL
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_noID_fullsentence[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + batch, data = merged_noID_fullsentence))
+  results_model6 = rbind(results_model6, cbind(i, t(results_all$coefficients[2,])))
+}
+
+
+#Sex stratified
+female = subset(merged_total, sex == "Female")
+male = subset(merged_total, sex == "Male")
+
+results_model7 = NULL
+results_model8 = NULL
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(female[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + cognitive_impairment_latest, data = female))
+  results_model7 = rbind(results_model7, cbind(i, t(results_all$coefficients[2,])))
+}
+
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(male[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + cognitive_impairment_latest, data = male))
+  results_model8 = rbind(results_model8, cbind(i, t(results_all$coefficients[2,])))
+}
+
+summary(lm(diagnosis_age3 ~ scale(over10_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest + batch, data = merged_total))
+summary(lm(diagnosis_age3 ~ scale(under11_PGS)*sex + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest + batch, data = merged_total))
+
+#DSM model
+
+merged_total$diagnosis_age4 = ceiling(merged_total$diagnosis_age/12)
+merged_total$year_of_birth = merged_total$registration_year - merged_total$age_at_registration_years
+merged_total$year_of_diagnosis = merged_total$year_of_birth + merged_total$diagnosis_age4
+table(merged_total$year_of_diagnosis)
+merged_total$DSM = ifelse(merged_total$year_of_diagnosis < 2013, "Four", NA)
+merged_total$DSM = ifelse(merged_total$year_of_diagnosis > 2014, "Five", merged_total$DSM)
+table(merged_total$DSM)
+
+results_model9 = NULL
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + DSM + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest, data = merged_total))
+  results_model9 = rbind(results_model9, cbind(i, t(results_all$coefficients[2,])))
+  print((length(results_all$residuals)))
+}
+
+###SPARK replication
+
+#Polygenic scoring in SPARK"
+
+library(data.table)
+library(MASS)
+library(lme4)
+library(tidyverse)
+library(boot)
+
+over10 = fread("~/Autism_heterogeneity/PGS/SPARK_replication_iPSYCHover10_finalscore.profile") #48750
+over10 = over10[,c("FID", "IID", "SCORE")]
+setnames(over10, "SCORE", "over10_PGS")
+
+
+under11 = fread("~/Autism_heterogeneity/PGS/SPARK_replication_iPSYCHunder11_finalscore.profile")
+under11 = under11[,c("IID", "SCORE")]
+setnames(under11, "SCORE", "under11_PGS")
+
+
+merged = merge(over10, under11, by = "IID")
+
+PCs = fread("~/SPARK/SPARK_v4/GWAS/age_diagnosis_qcovar.txt") # 47170
+covar = fread("~/SPARK/SPARK_v4/GWAS/age_diagnosis_covar.txt")
+covar = covar[,c("IID", "batch")]
+merged = merge(merged, PCs, by = "IID")
+merged = merge(merged, covar, by = "IID")
+
+
+
+###Read the pheno files###
+
+core = fread("/mnt/beegfs/home4/arc/vw260/SPARK/Phenotypes/V9/SPARK_collection_v9_2022-12-12/core_descriptive_variables_2022-12-12.csv")
+core_autism = subset(core, asd == "TRUE") # 123442
+
+autism_eligible = subset(core_autism, age_at_registration_years < 22) # 109657, persons born in 1994 or afterwards after DSM -4 came out, and subsequently, the use of Asperger Syndrome
+
+merged_total = merge(merged, autism_eligible, by.x = "IID", by.y = "subject_sp_id")
+merged_total$diagnosis_age3 = scale(merged_total$diagnosis_age/12)
+
+
+
+#Run regressions
+#Model 1: ID included as a covariate
+
+list1 = c("over10_PGS", "under11_PGS")
+
+results_model1 = NULL
+results_model2 = NULL
+results_model2_allclinical = NULL
+
+results_model3 = NULL
+results_model4 = NULL
+results_model5 = NULL
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + batch + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest, data = merged_total))
+  results_model1 = rbind(results_model1, cbind(i, t(results_all$coefficients[2,])))
+  print((length(results_all$residuals)))
+}
+
+
+
+
+#Model 2: Sensitivity analyses - developmental milestones
+merged_total$walked_age_mos = ifelse(merged_total$walked_age_mos == "888", NA, merged_total$walked_age_mos)
+merged_total$used_words_age_mos = ifelse(merged_total$used_words_age_mos == "888", NA, merged_total$used_words_age_mos)
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + batch + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest + walked_age_mos + used_words_age_mos, data = merged_total))
+  results_model2 = rbind(results_model2, cbind(i, t(results_all$coefficients[2,])))
+  print((length(results_all$residuals)))
+}
+
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + batch + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest + walked_age_mos + used_words_age_mos + scq_total_final_score + rbsr_total_final_score + regress_lang_y_n + regress_other_y_n + reported_cog_test_score, data = merged_total))
+  results_model2_allclinical = rbind(results_model2_allclinical, cbind(i, t(results_all$coefficients[2,])))
+  print((length(results_all$residuals)))
+}
+
+
+#Model 3: With SES
+
+SES =  fread("/mnt/beegfs/home4/arc/vw260/SPARK/Phenotypes/V9/SPARK_collection_v9_2022-12-12/background_history_child_2022-12-12.csv")
+SES2 = SES[,c("subject_sp_id", "mother_highest_education", "father_highest_education", "mother_occupation", "father_occupation", "annual_household_income")]
+
+setnames(SES2, "subject_sp_id", "IID")
+merged_total_ses= merge(merged_total, SES2, by = "IID")
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_ses[[i]]) + batch + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex  + cognitive_impairment_latest + walked_age_mos + used_words_age_mos + mother_occupation + father_occupation + annual_household_income + father_highest_education + mother_highest_education, data = merged_total_ses))
+  results_model3 = rbind(results_model3, cbind(i, t(results_all$coefficients[2,])))
+  print((length(results_all$residuals)))
+}
+
+
+
+#Model 4: With SES and deprivation
+
+deprivation = fread("/mnt/beegfs/home4/arc/vw260/SPARK/Phenotypes/V9/SPARK_collection_v9_2022-12-12/area_deprivation_index_2022-12-12.csv")
+setnames(deprivation, "subject_sp_id", "IID")
+
+merged_total_dep = merge(merged_total_ses, deprivation, by = "IID")
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_dep[[i]]) + batch + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex  + cognitive_impairment_latest + walked_age_mos + used_words_age_mos + mother_occupation + father_occupation + annual_household_income + adi_national_rank_percentile, data = merged_total_dep))
+  results_model4 = rbind(results_model4, cbind(i, t(results_all$coefficients[2,])))
+  print((length(results_all$residuals)))
+}
+
+
+
+
+##Sex-diff
+
+
+# Accounting for ADHD diagnosis or any mental health diagnosis
+health = fread("/mnt/beegfs/home4/arc/vw260/SPARK/Phenotypes/V9/SPARK_collection_v9_2022-12-12/basic_medical_screening_2022-12-12.csv")
+
+health2 = health[,c("subject_sp_id", "attn_behav", "mood_anx", "schiz", "tics")]
+health2[is.na(health2)] <- 0
+
+
+setnames(health2, "subject_sp_id", "IID")
+
+merged_total_health = merge(merged_total, health2, by = "IID")
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total_health[[i]]) + batch + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex  + cognitive_impairment_latest + attn_behav, data = merged_total_health))
+  results_model5 = rbind(results_model5, cbind(i, t(results_all$coefficients[2,])))
+  print((length(results_all$residuals)))
+}
+
+
+
+
+#Sensitivity analyses - restricting to individuals without ID and who can speak in sentences
+merged_noID = subset(merged_total, cognitive_impairment_latest  == FALSE)
+merged_noID_fullsentence = subset(merged_noID, language_level_latest  == "Uses longer sentences of his/her own and is able to tell you something that happened")
+
+
+results_model6 = NULL
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_noID_fullsentence[[i]]) + batch + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex, data = merged_noID_fullsentence))
+  results_model6 = rbind(results_model6, cbind(i, t(results_all$coefficients[2,])))
+  print((length(results_all$residuals)))
+}
+
+
+#Sex stratified
+female = subset(merged_total, sex == "Female")
+male = subset(merged_total, sex == "Male")
+
+results_model7 = NULL
+results_model8 = NULL
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(female[[i]]) + batch + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + cognitive_impairment_latest, data = female))
+  results_model7 = rbind(results_model7, cbind(i, t(results_all$coefficients[2,])))
+  print((length(results_all$residuals)))
+}
+
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(male[[i]]) + batch + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + cognitive_impairment_latest, data = male))
+  results_model8 = rbind(results_model8, cbind(i, t(results_all$coefficients[2,])))
+  print((length(results_all$residuals)))
+}
+
+
+
+summary(lm(diagnosis_age3 ~ scale(over10_PGS)*sex + batch + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
+summary(lm(diagnosis_age3 ~ scale(under11_PGS)*sex + batch + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10  + cognitive_impairment_latest, data = merged_total))
+
+#DSM model
+
+merged_total$diagnosis_age4 = ceiling(merged_total$diagnosis_age/12)
+merged_total$year_of_birth = merged_total$registration_year - merged_total$age_at_registration_years
+merged_total$year_of_diagnosis = merged_total$year_of_birth + merged_total$diagnosis_age4
+table(merged_total$year_of_diagnosis)
+merged_total$DSM = ifelse(merged_total$year_of_diagnosis < 2013, "Four", NA)
+merged_total$DSM = ifelse(merged_total$year_of_diagnosis > 2014, "Five", merged_total$DSM)
+table(merged_total$DSM)
+
+results_model9 = NULL
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + DSM + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + cognitive_impairment_latest, data = merged_total))
+  results_model9 = rbind(results_model9, cbind(i, t(results_all$coefficients[2,])))
+  print((length(results_all$residuals)))
+}
+
+
+#Here we check if there are differences in PGS between trios and non-trios
+
+registration = fread("/mnt/beegfs/home4/arc/vw260/SPARK/Phenotypes/V9/SPARK_collection_v9_2022-12-12/core_descriptive_variables_2022-12-12.csv")
+
+trios =  registration[!(registration$biofather_id =="" | registration$biomother_id==""), ] 
+asd_trios = subset(trios, asd == "TRUE") 
+
+
+merged_pgs_trio = merge(merged_total, asd_trios, by.x = "IID", by.y = "subject_sp_id") 
+
+merged_pgs_trio = merged_pgs_trio[merged_pgs_trio$biomother_id.x %in% over10$IID,] 
+merged_pgs_trio = merged_pgs_trio[merged_pgs_trio$biofather_id.x %in% over10$IID,] 
+
+merged_total$trio = ifelse(merged_total$IID %in% merged_pgs_trio$IID, 1, 0)
+
+
+
+results_model10 = NULL
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]]) + trio + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest, data = merged_total))
+  results_model10 = rbind(results_model10, cbind(i, t(results_all$coefficients[2,])))
+  print(length(results_all$residuals))
+}
+
+results_model3 = NULL
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(merged_total[[i]])*trio + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest, data = merged_total))
+  
+  results_model3 = rbind(results_model3, cbind(i, t(results_all$coefficients[17,])))
+}
+
+
+trios = subset(merged_total, trio == "1")
+
+results_model4 = NULL
+
+for(i in list1){
+  results_all = summary(lm(diagnosis_age3 ~ scale(trios[[i]]) + X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10 + sex + age_at_registration_years + cognitive_impairment_latest, data = trios))
+  
+  results_model4 = rbind(results_model4, cbind(i, t(results_all$coefficients[2,])))
+}
+
+
