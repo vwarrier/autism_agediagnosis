@@ -18,10 +18,8 @@ CommonFactor_DWLS<- commonfactor(covstruc = LDSCoutput, estimation="DWLS")
 CFAofEFA <- "F1 =~ NA*PGC + SPARK_under6 + iPSYCH_under9
              F2 =~ NA*iPSYCH_over12  + FinnGen + SPARK_over10 + iPSYCH_under9
             F1~~F2
-            PGC ~~ a*PGC
-            a > .001
-            iPSYCH_over12 ~~ b*iPSYCH_over12
-            b > .001"
+            iPSYCH_over12 ~~ a*iPSYCH_over12
+            a > .001"
 
 Autism_CFA_cor<-usermodel(LDSCoutput, estimation = "DWLS", model = CFAofEFA, CFIcalc = TRUE, std.lv = TRUE, imp_cov = FALSE)
 
