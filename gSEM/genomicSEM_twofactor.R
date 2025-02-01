@@ -107,7 +107,7 @@ Autism_CFA_cor
 
 ###Sensitivity analyses 1 - less stringent difference
 
-setwd("/mnt/beegfs/home4/arc/vw260/ldsc/sumstats")
+ setwd("/mnt/beegfs/home4/arc/vw260/ldsc/sumstats")
 traits <- c("Autism_PGC2_2017.sumstats.gz", "autism_ipsych_under11.sumstats.gz", "autism_ipsych_over10.sumstats.gz", "Finngen_r10_autism.sumstats.gz",  "SPARK_under10_meta.sumstats", "SPARK_over10_meta.sumstats")
 sample.prev <- c(NA, NA, NA, NA, NA, NA)
 population.prev <- c(NA, NA, NA, NA, NA, NA)
@@ -122,25 +122,13 @@ CommonFactor_DWLS<- commonfactor(covstruc = LDSCoutput, estimation="DWLS")
 CommonFactor_DWLS
 
 #Two correlated factor
-CFAofEFA <- "F1 =~ NA*PGC + SPARK_under11 + iPSYCH_under11
-             F2 =~ NA*iPSYCH_over10  + FinnGen + SPARK_over10 + iPSYCH_under11
+CFAofEFA <- "F1 =~ NA*PGC + SPARK_under11 + iPSYCH_under11 
+             F2 =~ NA*iPSYCH_over10  + FinnGen + SPARK_over10 + iPSYCH_under11 + SPARK_under11
             F1~~F2
-            iPSYCH_over10 ~~ a*iPSYCH_over10
+          iPSYCH_over10 ~~ a*iPSYCH_over10
             a > .001"
 
 Autism_CFA_cor<-usermodel(LDSCoutput, estimation = "DWLS", model = CFAofEFA, CFIcalc = TRUE, std.lv = TRUE, imp_cov = FALSE)
-
-
 Autism_CFA_cor
 
-#Two correlated factor based on geography
-CFAofEFA <- "F1 =~ NA*PGC + SPARK_under11 + SPARK_over10
-             F2 =~ NA*iPSYCH_over10  + FinnGen + iPSYCH_under11
-            F1~~F2
-            iPSYCH_under11 ~~ b*iPSYCH_under11
-            b > 0.001"
-
-Autism_CFA<-usermodel(LDSCoutput, estimation = "DWLS", model = CFAofEFA, CFIcalc = TRUE, std.lv = TRUE, imp_cov = FALSE)
-
-Autism_CFA
 
